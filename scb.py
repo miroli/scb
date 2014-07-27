@@ -9,57 +9,25 @@ init(autoreset=True)
 
 
 class SCB:
-    BASE_URL = 'http://api.scb.se/OV0104/v1/doris/sv/ssd/'
-    pwd = BASE_URL
+    cururl = 'http://api.scb.se/OV0104/v1/doris/sv/ssd/'
 
     def get_overview(self):
-        r = requests.get(self.BASE_URL)
+        r = requests.get(self.cururl)
         subjects = json.loads(r.text)
 
         self.print_contents(subjects)
 
     def select(self, id):
-        new_pwd = self.pwd + id
-        self.request_page(new_pwd)
-
-    def select_table(self, id):
-        new_pwd = self.pwd + id
-        r = requests.get(new_pwd)
-
-        table = json.loads(r.text)
-
-        print table['title']
-
-        for variable in table['variables']:
-            print variable['code'] + ' (' + variable['text'] + ')'
-            print str(len(variable['values'])) + ' värden att välja mellan\n'
-
-        headers = {'content-type': 'text/csv', 'accept': 'text/csv'}
-        data = {'query': []}
-
-        # Ask the user for filters
-        for variable in table['variables']:
-            print variable['code'] + ': '
-            for value in variable['values']:
-                print value,
-            answer = raw_input('\nValj ' + variable['code'] + ': ')
-
-            # Construct the query
-            data['query'].append({'code': variable['code'], 'selection': {'filter': 'item', 'values': [answer]}})
-
-        data['response'] = {'format': 'csv'}
-
-        r = requests.post(new_pwd, data=json.dumps(data), headers=headers)
-        print r.text
-
+        url = self.cururl + id
+        self.request_page(url)
 
     def back(self):
-        new_pwd = self.pwd.rstrip('/').rsplit('/', 1)[0]
-        self.request_page(new_pwd)
+        url = self.cururl.rstrip('/').rsplit('/', 1)[0]
+        self.request_page(url)
 
     def request_page(self, url):
         r = requests.get(url)
-        self.pwd = url + '/'
+        self.cururl = url + '/'
         subjects = json.loads(r.text)
 
         response_type = subjects[0]['type']
@@ -102,6 +70,41 @@ class SCB:
             print 'Uppdaterad:' + textwrap.fill(table['updated'], initial_indent=uppdaterad_indent)
             print 'ID:' + textwrap.fill(table['id'], initial_indent=id_indent, subsequent_indent=id_indent)
             print ''
+
+    def filter_table(self, id):
+        url = self.cururl + id
+        r = requests.get(url)
+
+        table = json.loads(r.text)
+
+        print table['title']
+
+        for variable in table['variables']:
+            print variable['code'] + ' (' + variable['text'] + ')'
+            print str(len(variable['values'])) + ' värden att välja mellan\n'
+
+        headers = {'content-type': 'text/csv', 'accept': 'text/csv'}
+        data = {'query': []}
+
+        # Ask the user for filters
+        for variable in table['variables']:
+            print variable['code'] + ': '
+            for value in variable['values']:
+                print value,
+            answer = raw_input('\nValj ' + variable['code'] + ': ').split()
+
+            # Construct the query
+            data['query'].append({'code': variable['code'], 'selection': {'filter': 'item', 'values': answer}})
+
+        data['response'] = {'format': 'csv'}
+
+        r = requests.post(url, data=json.dumps(data), headers=headers)
+        print r.text
+
+    def download_table(self, id):
+        '''
+        Lets the user download the table
+        '''
 
 if __name__ == '__main__':
     print 'working'
